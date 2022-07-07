@@ -1,0 +1,6 @@
+# Visual Studio
+.vs
+OSMtoSQLite/bin/Debug/*
+OSMtoSQLite/obj/Debug/*
+OSMtoSQLite/bin/Release/*
+OSMtoSQLite/obj/Release/*
