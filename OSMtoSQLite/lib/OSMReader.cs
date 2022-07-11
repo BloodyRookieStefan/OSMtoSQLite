@@ -1,4 +1,5 @@
-﻿using OSMConverter.OSMTypes;
+﻿using OSMConverter.lib;
+using OSMConverter.OSMTypes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,47 +23,68 @@ namespace OSMConverter
         internal static long TotalWays = 0;
         internal static long TotalRelations = 0;
 
+        /// <summary>
+        /// Read OSM file
+        /// </summary>
+        /// <param name="input">Path to OSM file</param>
         internal static void Read(string input)
         {
+            // Start time
             DateTime start = DateTime.UtcNow;
 
+            // Read XML styled file
             using (XmlReader reader = XmlReader.Create(input))
             {
+                // Run trough all lines
                 reader.MoveToContent();
                 while (reader.Read())
                 {
+                    // Start node
                     if (reader.NodeType == XmlNodeType.Element)
                     {
+                        // Handle type
                         switch(reader.Name)
                         {
                             case "node":
+                                // Check if single xml node without sub nodes
                                 if (Node != null)
                                     SendNODEtoSQL(Node, null);
+                                // Read xml node
                                 Node = ReadNode(reader);
                                 break;
                             case "way":
+                                // Check if single xml node without sub nodes
                                 if (Way != null)
                                     SendWAYtoSQL(Way, null, null);
+                                // Read xml node
                                 Way = ReadWay(reader);
                                 break;
                             case "relation":
+                                // Check if single xml node without sub nodes
                                 if (Relation != null)
                                     SendRELATIONtoSQL(Relation, null, null);
+                                // Read xml node
                                 Relation = ReadRelation(reader);
                                 break;
                             case "nd":
+                                // Read xml node
                                 NodeRefs.Add(ReadNodeRef(reader));
                                 break;
                             case "tag":
+                                // Read xml node
                                 Tags.Add(ReadTag(reader));
                                 break;
                             case "member":
+                                // Read xml node
                                 Members.Add(ReadMember(reader));
                                 break;
                         }
                     }
+                    // End node
                     else if(reader.NodeType == XmlNodeType.EndElement)
                     {
+                        // Check type of parent xml node and
+                        // send to SQLite database
                         if(Node != null)
                             SendNODEtoSQL(Node, Tags);
                         else if (Way != null)
@@ -73,10 +95,20 @@ namespace OSMConverter
                 }
             }
 
+            // End time
             ElapsedTime = DateTime.UtcNow - start;
+
+            // Do a cleanup after we are done
+            TempFolder.CleanUpTempFolder();
         }
 
         #region Read functions
+        /// <summary>
+        /// Read OSM node type
+        /// </summary>
+        /// <param name="reader">Current XML reader</param>
+        /// <returns>Node struct</returns>
+        /// <exception cref="InvalidOperationException">Invalid xml format</exception>
         private static Node ReadNode(XmlReader reader)
         {
             // Create new node
@@ -126,6 +158,12 @@ namespace OSMConverter
             return node;
         }
 
+        /// <summary>
+        /// Read OSM way type
+        /// </summary>
+        /// <param name="reader">Current XML reader</param>
+        /// <returns>Way struct</returns>
+        /// <exception cref="InvalidOperationException">Invalid xml format</exception>
         private static Way ReadWay(XmlReader reader)
         {
             // Create new node
@@ -169,6 +207,12 @@ namespace OSMConverter
             return way;
         }
 
+        /// <summary>
+        /// Read OSM relation type
+        /// </summary>
+        /// <param name="reader">Current XML reader</param>
+        /// <returns>Relation struct</returns>
+        /// <exception cref="InvalidOperationException">Invalid xml format</exception>
         private static Relation ReadRelation(XmlReader reader)
         {
             // Create new node
@@ -212,6 +256,12 @@ namespace OSMConverter
             return relation;
         }
 
+        /// <summary>
+        /// Read OSM NodeRef type
+        /// </summary>
+        /// <param name="reader">Current XML reader</param>
+        /// <returns>NodeRef struct</returns>
+        /// <exception cref="InvalidOperationException">Invalid xml format</exception>
         private static NodeRef ReadNodeRef(XmlReader reader)
         {
             // Create new tag
@@ -237,6 +287,12 @@ namespace OSMConverter
             return nodeRef;
         }
 
+        /// <summary>
+        /// Read OSM Tag type
+        /// </summary>
+        /// <param name="reader">Current XML reader</param>
+        /// <returns>Tag struct</returns>
+        /// <exception cref="InvalidOperationException">Invalid xml format</exception>
         private static Tag ReadTag(XmlReader reader)
         {
             // Create new tag
@@ -265,6 +321,12 @@ namespace OSMConverter
             return tag;
         }
 
+        /// <summary>
+        /// Read OSM Member type
+        /// </summary>
+        /// <param name="reader">Current XML reader</param>
+        /// <returns>Member struct</returns>
+        /// <exception cref="InvalidOperationException">Invalid xml format</exception>
         private static Member ReadMember(XmlReader reader)
         {
             // Create new tag
@@ -297,6 +359,9 @@ namespace OSMConverter
         }
         #endregion
 
+        /// <summary>
+        /// Cleanup global data
+        /// </summary>
         private static void CleanUp()
         {
             Node = null;

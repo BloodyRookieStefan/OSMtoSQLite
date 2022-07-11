@@ -41,10 +41,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ConvertTo.cs" />
+    <Compile Include="Convert.cs" />
+    <Compile Include="lib\Decompress.cs" />
+    <Compile Include="lib\Dependencies.cs" />
     <Compile Include="Infos.cs" />
-    <Compile Include="OSMReader.cs" />
-    <Compile Include="Types.cs" />
+    <Compile Include="lib\OSMReader.cs" />
+    <Compile Include="lib\TempFolder.cs" />
+    <Compile Include="lib\Types.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup />
