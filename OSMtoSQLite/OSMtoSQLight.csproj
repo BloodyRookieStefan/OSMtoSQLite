@@ -42,7 +42,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Convert.cs" />
-    <Compile Include="lib\Decompress.cs" />
+    <Compile Include="lib\DataHandler.cs" />
     <Compile Include="lib\Dependencies.cs" />
     <Compile Include="Infos.cs" />
     <Compile Include="lib\OSMReader.cs" />
@@ -50,6 +50,5 @@
     <Compile Include="lib\Types.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
-  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

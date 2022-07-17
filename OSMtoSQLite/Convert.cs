@@ -8,6 +8,16 @@ using System.Threading.Tasks;
 
 namespace OSMConverter
 {
+    public enum Filter
+    {
+        None,
+        Buildings,
+        Highway,
+        Wood,
+        Waterway,
+        Railway,
+    }
+
     public class Convert
     {
         #region OSM to SQLite
@@ -19,7 +29,7 @@ namespace OSMConverter
         /// <exception cref="InvalidOperationException">Wrong file extension</exception>
         public static void OSMtoSQLite(string file, string sql)
         {
-            OSMtoSQLite(file, sql, new Filter[] {Filter.None});
+            OSMtoSQLite(file, sql, new List<Filter> { Filter.None});
         }
 
         /// <summary>
@@ -31,7 +41,7 @@ namespace OSMConverter
         /// <exception cref="InvalidOperationException">Wrong file extension</exception>
         public static void OSMtoSQLite(string file, string sql, Filter filter)
         {
-            OSMtoSQLite(file, sql, new Filter[] { filter });
+            OSMtoSQLite(file, sql, new List<Filter> { filter });
         }
 
         /// <summary>
@@ -41,12 +51,12 @@ namespace OSMConverter
         /// <param name="sql">Path to target SQLite database</param>
         /// <param name="filter">Multiple OSM Filters</param>
         /// <exception cref="InvalidOperationException">Wrong file extension</exception>
-        public static void OSMtoSQLite(string file, string sql, Filter[] filter)
+        public static void OSMtoSQLite(string file, string sql, List<Filter> filter)
         {
             // Input checks
             if (!Path.GetExtension(file).ToLower().Equals(".osm"))
                 throw new InvalidOperationException("Wrong file extension");
-            if (filter.Length == 1 && filter[0] == Filter.None)
+            if (filter.Count == 1 && filter[0] == Filter.None)
                 InputChecks(file, sql, false);
             else
                 InputChecks(file, sql, true);
@@ -60,7 +70,7 @@ namespace OSMConverter
             bottom.Point = "49.112747";
             bottom.Shift = "9.270416";
             // -----
-            string[] files = Decompress.Extract(file, top, bottom, filter);
+            string[] files = DataHandler.PreProcess(file, null, null, filter.Distinct().ToList());
 
             // Read file
             //OSMReader.Read(file);
@@ -76,7 +86,7 @@ namespace OSMConverter
         /// <exception cref="InvalidOperationException">Wrong file extension</exception>
         public static void BZ2toSQLite(string file, string sql)
         {
-            BZ2toSQLite(file, sql, new Filter[] { Filter.None });
+            BZ2toSQLite(file, sql, new List<Filter> { Filter.None });
         }
 
         /// <summary>
@@ -88,7 +98,7 @@ namespace OSMConverter
         /// <exception cref="InvalidOperationException">Wrong file extension</exception>
         public static void BZ2toSQLite(string file, string sql, Filter filter)
         {
-            BZ2toSQLite(file, sql, new Filter[] {filter});
+            BZ2toSQLite(file, sql, new List<Filter> { filter});
         }
 
         /// <summary>
@@ -98,12 +108,12 @@ namespace OSMConverter
         /// <param name="sql">Path to target SQLite database</param>
         /// <param name="filter">Multiple OSM Filters</param>
         /// <exception cref="InvalidOperationException">Wrong file extension</exception>
-        public static void BZ2toSQLite(string file, string sql, Filter[] filter)
+        public static void BZ2toSQLite(string file, string sql, List<Filter> filter)
         {
             // Input checks
             if (!Path.GetExtension(file).ToLower().Equals(".bz2"))
                 throw new InvalidOperationException("Wrong file extension");
-            if (filter.Length == 1 && filter[0] == Filter.None)
+            if (filter.Count == 1 && filter[0] == Filter.None)
                 InputChecks(file, sql, false);
             else
                 InputChecks(file, sql, true);
@@ -117,7 +127,7 @@ namespace OSMConverter
             bottom.Point = "49.112747";
             bottom.Shift = "9.270416";
             // -----
-            string[] files = Decompress.Extract(file, top, bottom, filter);
+            string[] files = DataHandler.PreProcess(file, top, bottom, filter.Distinct().ToList());
 
             // Read file
             //OSMReader.Read(file);

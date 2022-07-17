@@ -49,7 +49,7 @@ namespace OSMConverter.lib
             }
 
             // Remove folder
-            Directory.Delete(GetTempFolder(), true);    
+            Directory.Delete(GetTempFolder(false), true);    
         }
     }
 }
