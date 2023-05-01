@@ -1,10 +1,13 @@
 ﻿using OSMConverter.lib;
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace OSMConverter
 {
@@ -29,7 +32,7 @@ namespace OSMConverter
         /// <exception cref="InvalidOperationException">Wrong file extension</exception>
         public static void OSMtoSQLite(string file, string sql)
         {
-            OSMtoSQLite(file, sql, new List<Filter> { Filter.None});
+            BZ2toSQLite(file, sql, new List<Filter> { Filter.None });
         }
 
         /// <summary>
@@ -41,7 +44,7 @@ namespace OSMConverter
         /// <exception cref="InvalidOperationException">Wrong file extension</exception>
         public static void OSMtoSQLite(string file, string sql, Filter filter)
         {
-            OSMtoSQLite(file, sql, new List<Filter> { filter });
+            BZ2toSQLite(file, sql, new List<Filter> { filter });
         }
 
         /// <summary>
@@ -53,27 +56,21 @@ namespace OSMConverter
         /// <exception cref="InvalidOperationException">Wrong file extension</exception>
         public static void OSMtoSQLite(string file, string sql, List<Filter> filter)
         {
-            // Input checks
-            if (!Path.GetExtension(file).ToLower().Equals(".osm"))
-                throw new InvalidOperationException("Wrong file extension");
-            if (filter.Count == 1 && filter[0] == Filter.None)
-                InputChecks(file, sql, false);
-            else
-                InputChecks(file, sql, true);
+            BZ2toSQLite(file, sql, filter, null, null);
+        }
 
-            // Decompress
-            // -- DEBUG
-            ComboundBoxPoint top = new ComboundBoxPoint();
-            top.Point = "49.175055";
-            top.Shift = "9.190164";
-            ComboundBoxPoint bottom = new ComboundBoxPoint();
-            bottom.Point = "49.112747";
-            bottom.Shift = "9.270416";
-            // -----
-            string[] files = DataHandler.PreProcess(file, null, null, filter.Distinct().ToList());
-
-            // Read file
-            //OSMReader.Read(file);
+        /// <summary>
+        /// Create new SQLite database out of OSM file
+        /// </summary>
+        /// <param name="file">Input BZ2 file</param>
+        /// <param name="sql">Path to target SQLite database</param>
+        /// <param name="filter">Multiple OSM Filters</param>
+        /// <param name="northWest">Point of bounding box - north west</param>
+        /// <param name="southEast">Point of bounding box - south east</param>
+        /// <exception cref="InvalidOperationException">Wrong file extension</exception>
+        public static void OSMtoSQLite(string file, string sql, List<Filter> filter, Point? northWest, Point? southEast)
+        {
+            BZ2toSQLite(file, sql, filter, northWest, southEast);
         }
         #endregion
 
@@ -98,7 +95,7 @@ namespace OSMConverter
         /// <exception cref="InvalidOperationException">Wrong file extension</exception>
         public static void BZ2toSQLite(string file, string sql, Filter filter)
         {
-            BZ2toSQLite(file, sql, new List<Filter> { filter});
+            BZ2toSQLite(file, sql, new List<Filter> { filter });
         }
 
         /// <summary>
@@ -110,27 +107,66 @@ namespace OSMConverter
         /// <exception cref="InvalidOperationException">Wrong file extension</exception>
         public static void BZ2toSQLite(string file, string sql, List<Filter> filter)
         {
+            BZ2toSQLite(file, sql, filter, null, null);
+        }
+
+        /// <summary>
+        /// Create new SQLite database out of BZ2 file
+        /// </summary>
+        /// <param name="file">Input BZ2 file</param>
+        /// <param name="sql">Path to target SQLite database</param>
+        /// <param name="filter">Multiple OSM Filters</param>
+        /// <param name="northWest">Point of bounding box - north west</param>
+        /// <param name="southEast">Point of bounding box - south east</param>
+        /// <exception cref="InvalidOperationException">Wrong file extension</exception>
+        public static void BZ2toSQLite(string file, string sql, List<Filter> filter, Point? northWest, Point? southEast)
+        {
             // Input checks
-            if (!Path.GetExtension(file).ToLower().Equals(".bz2"))
-                throw new InvalidOperationException("Wrong file extension");
-            if (filter.Count == 1 && filter[0] == Filter.None)
+            if (filter.Count == 1 && filter[0] == Filter.None && northWest == null && southEast == null)
                 InputChecks(file, sql, false);
             else
                 InputChecks(file, sql, true);
 
-            // Decompress
-            // -- DEBUG
-            ComboundBoxPoint top = new ComboundBoxPoint();
-            top.Point = "49.175055";
-            top.Shift = "9.190164";
-            ComboundBoxPoint bottom = new ComboundBoxPoint();
-            bottom.Point = "49.112747";
-            bottom.Shift = "9.270416";
-            // -----
-            string[] files = DataHandler.PreProcess(file, top, bottom, filter.Distinct().ToList());
+            string[] files;
+            if (northWest != null && southEast != null)
+            {
+                ComboundBoxPoint c_northWest = new ComboundBoxPoint();
+                ComboundBoxPoint c_southEast = new ComboundBoxPoint();
 
-            // Read file
-            //OSMReader.Read(file);
+                c_northWest.Point = northWest.Value.X.ToString().Replace(',', '.');
+                c_northWest.Shift = northWest.Value.Y.ToString().Replace(',', '.');
+                c_southEast.Point = southEast.Value.X.ToString().Replace(',', '.');
+                c_southEast.Shift = southEast.Value.Y.ToString().Replace(',', '.');
+
+                // Decompress
+                files = DataFilter.PreProcess(file, c_northWest, c_southEast, filter.Distinct().ToList());
+            }
+            else
+            {
+                // Decompress
+                files = DataFilter.PreProcess(file, null, null, filter.Distinct().ToList());
+            }
+
+            for (int i = 0; i < files.Length; i++)
+            {
+                // Skip null files
+                if (files[i] == null)
+                    continue;
+
+                // Select databse name
+                string dbName = null;
+                if (i == 0)
+                    dbName = "BoundingBox";
+                else
+                    dbName = ((Filter)i).ToString();
+
+                // Create new empty databse
+                SQLController.CreateDatabase(Path.Combine(sql, $"{dbName}.sqlite"));
+                // Read file
+                OSMReader.Read(files[i]);
+                // Send data to SQL databse
+                SQLController.SendDataToSQL(OSMReader.Nodes, OSMReader.Ways, OSMReader.Relations);
+            }
         }
         #endregion
 
@@ -142,15 +178,16 @@ namespace OSMConverter
         /// <param name="javaNeeded">Check for java installation</param>
         /// <exception cref="Exception">No Java installation found</exception>
         /// <exception cref="FileNotFoundException">Input OSM file does not exist</exception>
-        /// <exception cref="InvalidOperationException">SQLite database already exists</exception>
+        /// <exception cref="InvalidOperationException">Wrong extension for input file</exception>
         private static void InputChecks(string file, string sql, bool javaNeeded)
         {
-            if(javaNeeded && !Dependencies.CheckJavaInstallation())
+            if(!Path.GetExtension(file).ToLower().Equals(".bz2") && !Path.GetExtension(file).ToLower().Equals(".osm"))
+                throw new InvalidOperationException("Wrong input file extension");
+
+            if (javaNeeded && !Dependencies.CheckJavaInstallation())
                 throw new Exception("No valid Java version found");
             if (!File.Exists(file))
                 throw new FileNotFoundException(file);
-            if (File.Exists(sql))
-                throw new InvalidOperationException("SQLite database already exist");
         }
     }
 }

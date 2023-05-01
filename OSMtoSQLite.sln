@@ -5,6 +5,8 @@ VisualStudioVersion = 17.1.32328.378
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OSMtoSQLight", "OSMtoSQLite\OSMtoSQLight.csproj", "{F997EBF2-6BE0-4500-8B98-6F5F57494821}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestFramework", "TestFramework\TestFramework.csproj", "{5BD6BE62-F98B-4352-A75D-F5E3517197BD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{F997EBF2-6BE0-4500-8B98-6F5F57494821}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F997EBF2-6BE0-4500-8B98-6F5F57494821}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F997EBF2-6BE0-4500-8B98-6F5F57494821}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5BD6BE62-F98B-4352-A75D-F5E3517197BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5BD6BE62-F98B-4352-A75D-F5E3517197BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5BD6BE62-F98B-4352-A75D-F5E3517197BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5BD6BE62-F98B-4352-A75D-F5E3517197BD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

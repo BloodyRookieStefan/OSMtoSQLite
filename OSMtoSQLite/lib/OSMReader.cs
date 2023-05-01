@@ -2,26 +2,23 @@
 using OSMConverter.OSMTypes;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
+using System.Xml.Linq;
 
 namespace OSMConverter
 {
     internal class OSMReader
     {
-        private static Node? Node = null;
-        private static Way? Way = null;
-        private static Relation? Relation = null;
-        private static List<NodeRef> NodeRefs = new List<NodeRef>();
-        private static List<Tag> Tags = new List<Tag>();
-        private static List<Member> Members = new List<Member>();
+        internal static List<Node> Nodes = new List<Node>();
+        internal static List<Way> Ways = new List<Way>();
+        internal static List<Relation> Relations = new List<Relation>();
 
-        internal static TimeSpan ElapsedTime = TimeSpan.Zero;
-        internal static long TotalNodes = 0;
-        internal static long TotalWays = 0;
-        internal static long TotalRelations = 0;
+        internal static TimeSpan ElapsedTime;                                   // Elapsed time for reading OSM document
 
         /// <summary>
         /// Read OSM file
@@ -32,74 +29,144 @@ namespace OSMConverter
             // Start time
             DateTime start = DateTime.UtcNow;
 
+            // Get in clear state
+            Nodes.Clear();
+            Ways.Clear();
+            Relations.Clear();
+            ElapsedTime = TimeSpan.Zero;
+
             // Read XML styled file
             using (XmlReader reader = XmlReader.Create(input))
             {
+                Node? node = null;
+                Way? way = null;
+                Relation? relation = null;  
+
+                List<NodeRef> nodeRefs = new List<NodeRef>();
+                List<Tag> tags = new List<Tag>();
+                List<Member> members = new List<Member>();
+
                 // Run trough all lines
                 reader.MoveToContent();
                 while (reader.Read())
                 {
-                    // Start node
+                    // Start tag XML node
                     if (reader.NodeType == XmlNodeType.Element)
                     {
-                        // Handle type
-                        switch(reader.Name)
+                        // Store value before open new one
+                        if((reader.Name == "node" || reader.Name == "way" || reader.Name == "relation") &&
+                            (node != null || way != null || relation != null))
                         {
-                            case "node":
-                                // Check if single xml node without sub nodes
-                                if (Node != null)
-                                    SendNODEtoSQL(Node, null);
-                                // Read xml node
-                                Node = ReadNode(reader);
-                                break;
-                            case "way":
-                                // Check if single xml node without sub nodes
-                                if (Way != null)
-                                    SendWAYtoSQL(Way, null, null);
-                                // Read xml node
-                                Way = ReadWay(reader);
-                                break;
-                            case "relation":
-                                // Check if single xml node without sub nodes
-                                if (Relation != null)
-                                    SendRELATIONtoSQL(Relation, null, null);
-                                // Read xml node
-                                Relation = ReadRelation(reader);
-                                break;
-                            case "nd":
-                                // Read xml node
-                                NodeRefs.Add(ReadNodeRef(reader));
-                                break;
-                            case "tag":
-                                // Read xml node
-                                Tags.Add(ReadTag(reader));
-                                break;
-                            case "member":
-                                // Read xml node
-                                Members.Add(ReadMember(reader));
-                                break;
+                            StoreToList(node, way, relation, nodeRefs, tags, members);
+
+                            // Reset
+                            node = null;
+                            way = null;
+                            relation = null;
+
+                            nodeRefs.Clear();
+                            tags.Clear();
+                            members.Clear();    
+                        }
+
+                        // Parent nodes
+                        if (reader.Name == "node")
+                        {
+                            node = ReadNode(reader);
+                            continue;
+                        }
+                        else if(reader.Name == "way")
+                        {
+                            way = ReadWay(reader);
+                            continue;
+                        }
+                        else if (reader.Name == "relation")
+                        {
+                            relation = ReadRelation(reader);
+                            continue;
+                        }
+
+                        // Sub nodes
+                        if (reader.Name == "tag")
+                        {
+                            tags.Add(ReadTag(reader));
+                            continue;
+                        }
+                        else if(reader.Name == "nd")
+                        {
+                            nodeRefs.Add(ReadNodeRef(reader));
+                            continue;
+                        }
+                        else if(reader.Name == "member")
+                        {
+                            members.Add(ReadMember(reader));
+                            continue;
                         }
                     }
-                    // End node
-                    else if(reader.NodeType == XmlNodeType.EndElement)
+                    // Last element - End of document
+                    else if (reader.NodeType == XmlNodeType.EndElement)
                     {
-                        // Check type of parent xml node and
-                        // send to SQLite database
-                        if(Node != null)
-                            SendNODEtoSQL(Node, Tags);
-                        else if (Way != null)
-                            SendWAYtoSQL(Way, NodeRefs, Tags);
-                        else if (Relation != null)
-                            SendRELATIONtoSQL(Relation, Members, Tags);
+                        if (reader.Name == "osm")
+                            StoreToList(node, way, relation, nodeRefs, tags, members);
                     }
                 }
             }
 
             // End time
             ElapsedTime = DateTime.UtcNow - start;
+        }
 
-            // Do a cleanup after we are done
-            TempFolder.CleanUpTempFolder();
+        /// <summary>
+        /// Store struct in list
+        /// </summary>
+        /// <param name="node">Node struct</param>
+        /// <param name="way">Way struct</param>
+        /// <param name="relation">Relation struct</param>
+        /// <param name="nodeRefs">List of node references</param>
+        /// <param name="tags">List of tags</param>
+        /// <param name="members">List of members</param>
+        /// <exception cref="Exception">Invalid handover to store XML node</exception>
+        private static void StoreToList(Node? node, Way? way, Relation? relation, List<NodeRef> nodeRefs, List<Tag> tags, List<Member> members)
+        {
+            int i = 0;
+
+            // Check which node has been recived => Store it in list
+            if (node != null)
+            {
+                Node n = (Node)node;
+                n.TAGS = new List<Tag>(tags);
+
+                Nodes.Add(n);
+                i++;
+            }
+            else if(way != null)
+            {
+                Way w = (Way)way;
+                w.TAGS = new List<Tag>(tags);
+                w.NODEREFERENCES = new List<NodeRef>(nodeRefs);
+
+                Ways.Add(w);
+                i++;
+            }
+            else if(relation != null)
+            {
+                Relation r = (Relation)relation;
+                r.TAGS = new List<Tag>(tags);
+                r.MEMBERS = new List<Member>(members);
+
+                Relations.Add(r);
+                i++;
+            }
+            else
+            {
+                throw new Exception("Could not store parent node. No XML node recived");
+            }
+
+            // Check only one XML node was stored
+            if(i != 1)
+            {
+                throw new Exception("Could not store parent node. Multiple XML nodes recived");
+            }
         }
 
         #region Read functions
@@ -118,37 +185,29 @@ namespace OSMConverter
             {
                 reader.MoveToAttribute(i);
 
-                switch (i)
+                if (reader.Name == "id")
                 {
-                    case 0:
-                        node.ID = reader.Value;
-                        break;
-                    case 1:
-                        node.VISIBLE = reader.Value;
-                        break;
-                    case 2:
-                        node.VERSION = reader.Value;
-                        break;
-                    case 3:
-                        node.CHANGESET = reader.Value;
-                        break;
-                    case 4:
-                        node.TIMESTAMP = reader.Value;
-                        break;
-                    case 5:
-                        node.USER = reader.Value;
-                        break;
-                    case 6:
-                        node.UID = reader.Value;
-                        break;
-                    case 7:
-                        node.LAT = reader.Value;
-                        break;
-                    case 8:
-                        node.LONG = reader.Value;
-                        break;
-                    default:
-                        throw new InvalidOperationException("Invalid number of attributes for NODE");
+                    node.ID = ReadFormatedValue(reader);
+                }
+                else if (reader.Name == "version")
+                {
+                    node.VERSION = ReadFormatedValue(reader);
+                }
+                else if (reader.Name == "timestamp")
+                {
+                    node.TIMESTAMP = ReadFormatedValue(reader);
+                }
+                else if (reader.Name == "lat")
+                {
+                    node.LAT = ReadFormatedValue(reader);
+                }
+                else if (reader.Name == "lon")
+                {
+                    node.LONG = ReadFormatedValue(reader);
+                }
+                else
+                {
+                    Console.WriteLine($"WARNING: Unknown attribute in ReadNode {reader.Value}");
                 }
             }
 
@@ -173,31 +232,21 @@ namespace OSMConverter
             {
                 reader.MoveToAttribute(i);
 
-                switch (i)
+                if (reader.Name == "id")
                 {
-                    case 0:
-                        way.ID = reader.Value;
-                        break;
-                    case 1:
-                        way.VISIBLE = reader.Value;
-                        break;
-                    case 2:
-                        way.VERSION = reader.Value;
-                        break;
-                    case 3:
-                        way.CHANGESET = reader.Value;
-                        break;
-                    case 4:
-                        way.TIMESTAMP = reader.Value;
-                        break;
-                    case 5:
-                        way.USER = reader.Value;
-                        break;
-                    case 6:
-                        way.UID = reader.Value;
-                        break;
-                    default:
-                        throw new InvalidOperationException("Invalid number of attributes for WAY");
+                    way.ID = ReadFormatedValue(reader);
+                }
+                else if (reader.Name == "version")
+                {
+                    way.VERSION = ReadFormatedValue(reader);
+                }
+                else if (reader.Name == "timestamp")
+                {
+                    way.TIMESTAMP = ReadFormatedValue(reader);
+                }
+                else
+                {
+                    Console.WriteLine($"WARNING: Unknown attribute in ReadWay {reader.Value}");
                 }
             }
 
@@ -222,31 +271,21 @@ namespace OSMConverter
             {
                 reader.MoveToAttribute(i);
 
-                switch (i)
+                if (reader.Name == "id")
                 {
-                    case 0:
-                        relation.ID = reader.Value;
-                        break;
-                    case 1:
-                        relation.VISIBLE = reader.Value;
-                        break;
-                    case 2:
-                        relation.VERSION = reader.Value;
-                        break;
-                    case 3:
-                        relation.CHANGESET = reader.Value;
-                        break;
-                    case 4:
-                        relation.TIMESTAMP = reader.Value;
-                        break;
-                    case 5:
-                        relation.USER = reader.Value;
-                        break;
-                    case 6:
-                        relation.UID = reader.Value;
-                        break;
-                    default:
-                        throw new InvalidOperationException("Invalid number of attributes for RELATION");
+                    relation.ID = ReadFormatedValue(reader);
+                }
+                else if (reader.Name == "version")
+                {
+                    relation.VERSION = ReadFormatedValue(reader);
+                }
+                else if (reader.Name == "timestamp")
+                {
+                    relation.TIMESTAMP = ReadFormatedValue(reader);
+                }
+                else
+                {
+                    Console.WriteLine($"WARNING: Unknown attribute in ReadRelation {reader.Value}");
                 }
             }
 
@@ -271,13 +310,13 @@ namespace OSMConverter
             {
                 reader.MoveToAttribute(i);
 
-                switch (i)
+                if (reader.Name == "ref")
                 {
-                    case 0:
-                        nodeRef.ID = reader.Value;
-                        break;
-                    default:
-                        throw new InvalidOperationException("Invalid number of attributes for NODE REFERENCE");
+                    nodeRef.ID = ReadFormatedValue(reader);
+                }
+                else
+                {
+                    Console.WriteLine($"WARNING: Unknown attribute in ReadNodeRef {reader.Value}");
                 }
             }
 
@@ -302,16 +341,17 @@ namespace OSMConverter
             {
                 reader.MoveToAttribute(i);
 
-                switch (i)
+                if (reader.Name == "k")
                 {
-                    case 0:
-                        tag.KEY = reader.Value;
-                        break;
-                    case 1:
-                        tag.VALUE = reader.Value;
-                        break;
-                    default:
-                        throw new InvalidOperationException("Invalid number of attributes for TAG");
+                    tag.KEY = ReadFormatedValue(reader);
+                }
+                else if (reader.Name == "v")
+                {
+                    tag.VALUE = ReadFormatedValue(reader);
+                }
+                else
+                {
+                    Console.WriteLine($"WARNING: Unknown attribute in ReadTag {reader.Value}");
                 }
             }
 
@@ -336,19 +376,21 @@ namespace OSMConverter
             {
                 reader.MoveToAttribute(i);
 
-                switch (i)
+                if (reader.Name == "type")
                 {
-                    case 0:
-                        member.TYPE = reader.Value;
-                        break;
-                    case 1:
-                        member.REF = reader.Value;
-                        break;
-                    case 2:
-                        member.ROLE = reader.Value;
-                        break;
-                    default:
-                        throw new InvalidOperationException("Invalid number of attributes for TAG");
+                    member.TYPE = ReadFormatedValue(reader);
+                }
+                else if (reader.Name == "ref")
+                {
+                    member.REF = ReadFormatedValue(reader);
+                }
+                else if (reader.Name == "role")
+                {
+                    member.ROLE = ReadFormatedValue(reader);
+                }
+                else
+                {
+                    Console.WriteLine($"WARNING: Unknown attribute in ReadMember {reader.Value}");
                 }
             }
 
@@ -360,65 +402,14 @@ namespace OSMConverter
         #endregion
 
         /// <summary>
-        /// Cleanup global data
+        /// Read value
         /// </summary>
-        private static void CleanUp()
+        /// <param name="reader">Current XML reader</param>
+        /// <returns>Formatted string</returns>
+        private static string ReadFormatedValue(XmlReader reader)
         {
-            Node = null;
-            Way = null;
-            Relation = null;
-            NodeRefs.Clear();
-            Tags.Clear();
-            Members.Clear();
-        }
-
-        private static void SendNODEtoSQL(Node? node, List<Tag> tags)
-        {
-            TotalNodes++;
-
-            // TODO
-            if (tags != null && tags.Count > 0)
-                Console.WriteLine($"DEBUG: Send NODE: {node.Value.ID} - Number of tags: {tags.Count}");
-            else
-                Console.WriteLine($"DEBUG: Send NODE: {node.Value.ID}");
-
-            CleanUp();
-        }
-
-        private static void SendWAYtoSQL(Way? way, List<NodeRef> nodeRefs, List<Tag> tags)
-        {
-            TotalWays++;
-
-            // TODO
-
-            if (tags != null && tags.Count > 0 && nodeRefs != null && nodeRefs.Count > 0)
-                Console.WriteLine($"DEBUG: Send WAY: {way.Value.ID} - Number of nodeRefs: {nodeRefs.Count} - Number of tags: {tags.Count}");
-            else if (tags != null && tags.Count > 0 )
-                Console.WriteLine($"DEBUG: Send WAY: {way.Value.ID} - Number of tags: {tags.Count}");
-            else if ( nodeRefs != null && nodeRefs.Count > 0)
-                Console.WriteLine($"DEBUG: Send WAY: {way.Value.ID} - Number of nodeRefs: {nodeRefs.Count}");
-            else
-                Console.WriteLine($"DEBUG: Send WAY: {way.Value.ID}");
-
-            CleanUp();
-        }
-
-        private static void SendRELATIONtoSQL(Relation? way, List<Member> members, List<Tag> tags)
-        {
-            TotalRelations++;
-
-            // TODO
-
-            if (tags != null && tags.Count > 0 && members != null && members.Count > 0)
-                Console.WriteLine($"DEBUG: Send RELATION: {way.Value.ID} - Number of members: {members.Count} - Number of tags: {tags.Count}");
-            else if (tags != null && tags.Count > 0)
-                Console.WriteLine($"DEBUG: Send RELATION: {way.Value.ID} - Number of tags: {tags.Count}");
-            else if (members != null && members.Count > 0)
-                Console.WriteLine($"DEBUG: Send RELATION: {way.Value.ID} - Number of members: {members.Count}");
-            else
-                Console.WriteLine($"DEBUG: Send RELATION: {way.Value.ID}");
-
-            CleanUp();
+            string val = reader.Value;
+            return val.Trim().Replace("\"", string.Empty).Replace("\\", string.Empty);
         }
     }
 }

@@ -9,14 +9,32 @@ namespace OSMConverter.OSMTypes
     internal struct Node
     {
         public string ID;
-        public string VISIBLE;
         public string VERSION;
-        public string CHANGESET;
         public string TIMESTAMP;
-        public string USER;
-        public string UID;
         public string LAT;
         public string LONG;
+
+        public List<Tag> TAGS; 
+    }
+
+    internal struct Way
+    {
+        public string ID;
+        public string VERSION;
+        public string TIMESTAMP;
+
+        public List<Tag> TAGS;
+        public List<NodeRef> NODEREFERENCES;
+    }
+
+    internal struct Relation
+    {
+        public string ID;
+        public string VERSION;
+        public string TIMESTAMP;
+
+        public List<Tag> TAGS;
+        public List<Member> MEMBERS;
     }
 
     internal struct Tag
@@ -25,31 +43,9 @@ namespace OSMConverter.OSMTypes
         public string VALUE;
     }
 
-    internal struct Way
-    {
-        public string ID;
-        public string VISIBLE;
-        public string VERSION;
-        public string CHANGESET;
-        public string TIMESTAMP;
-        public string USER;
-        public string UID;
-    }
-
     internal struct NodeRef
     {
         public string ID;
-    }
-
-    internal struct Relation
-    {
-        public string ID;
-        public string VISIBLE;
-        public string VERSION;
-        public string CHANGESET;
-        public string TIMESTAMP;
-        public string USER;
-        public string UID;
     }
 
     internal struct Member
