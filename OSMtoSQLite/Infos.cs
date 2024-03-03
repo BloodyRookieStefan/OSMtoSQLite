@@ -10,33 +10,6 @@ namespace OSMConverter
     public class Infos
     {
         /// <summary>
-        /// Get elapsed seconds for filtering OSM files
-        /// </summary>
-        /// <returns>Total elapsed seconds</returns>
-        public static double GetFilterElapsedSeconds()
-        {
-            return DataFilter.ElapsedTime.TotalSeconds;
-        }
-
-        /// <summary>
-        /// Get elapsed seconds reading OSM files
-        /// </summary>
-        /// <returns>Total elapsed seconds</returns>
-        public static double GetOSMReaderElapsedSeconds()
-        {
-            return OSMReader.ElapsedTime.TotalSeconds;
-        }
-
-        /// <summary>
-        /// Get elapsed seconds reading OSM files
-        /// </summary>
-        /// <returns>Total elapsed seconds</returns>
-        public static double GetSQLStoringElapsedSeconds()
-        {
-            return SQLController.ElapsedTime.TotalSeconds;
-        }
-
-        /// <summary>
         /// Get total number of nodes
         /// </summary>
         /// <returns>Total number of OSM nodes</returns>
@@ -61,6 +34,51 @@ namespace OSMConverter
         public static long GetTotalRelationCount()
         {
             return OSMReader.Relations.Count;
+        }
+
+        /// <summary>
+        /// Get overall time for all operations
+        /// </summary>
+        /// <returns>Total time in seconds</returns>
+        public static TimeSpan GetOverallTime()
+        {
+            return GetOverallFilterTime() + GetStoringTime();
+        }
+
+        /// <summary>
+        /// Get overall time for filtering data
+        /// </summary>
+        /// <returns>Total time in seconds</returns>
+        public static TimeSpan GetOverallFilterTime()
+        {
+            return GetFilterTime() + GetFilterTimeBoundingBox();
+        }
+
+        /// <summary>
+        /// Get time for filtering data
+        /// </summary>
+        /// <returns>Total time in seconds</returns>
+        public static TimeSpan GetFilterTime()
+        {
+            return Timers.GetTimerValue(LibTimers.Filter_Filtering);
+        }
+
+        /// <summary>
+        /// Get time for creating bounding box
+        /// </summary>
+        /// <returns>Total time in seconds</returns>
+        public static TimeSpan GetFilterTimeBoundingBox()
+        {
+            return Timers.GetTimerValue(LibTimers.Filter_BoundingBox);
+        }
+
+        /// <summary>
+        /// Get time for storing data
+        /// </summary>
+        /// <returns>Total time in seconds</returns>
+        public static TimeSpan GetStoringTime()
+        {
+            return Timers.GetTimerValue(LibTimers.SQL_Storing);
         }
     }
 }

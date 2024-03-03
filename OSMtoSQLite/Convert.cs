@@ -147,6 +147,7 @@ namespace OSMConverter
                 files = DataFilter.PreProcess(file, null, null, filter.Distinct().ToList());
             }
 
+            Timers.StartTimer(LibTimers.SQL_Storing);
             for (int i = 0; i < files.Length; i++)
             {
                 // Skip null files
@@ -167,6 +168,7 @@ namespace OSMConverter
                 // Send data to SQL databse
                 SQLController.SendDataToSQL(OSMReader.Nodes, OSMReader.Ways, OSMReader.Relations);
             }
+            Timers.StopTimer();
         }
         #endregion
 

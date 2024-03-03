@@ -28,15 +28,10 @@ namespace OSMConverter.lib
 
         private static string[] Sources;                                                                // Output array for path to filtered files
 
-        internal static TimeSpan ElapsedTime = TimeSpan.Zero;                                           // Elapst time for filter operation
-
         internal static string[] PreProcess(string source, ComboundBoxPoint? northWest, ComboundBoxPoint? southEast, List<Filter> filters)
         {
-            // Start time
-            DateTime start = DateTime.UtcNow;
             // Get in clear state
             Sources = new string[Enum.GetNames(typeof(Filter)).Length];
-            ElapsedTime = TimeSpan.Zero;
 
             // Remove "None" filter
             filters.Remove(Filter.None);
@@ -55,9 +50,6 @@ namespace OSMConverter.lib
             // Filter data
             Filtering();
 
-            // End time
-            ElapsedTime = DateTime.UtcNow - start;
-
             return Sources;
         }
 
@@ -66,6 +58,8 @@ namespace OSMConverter.lib
         /// </summary>
         private static void BoundingBox()
         {
+            Timers.StartTimer(LibTimers.Filter_BoundingBox);
+
             Sources[0] = Source;
 
             // If bounding box is given cut first
@@ -76,6 +70,8 @@ namespace OSMConverter.lib
                 w.RunBoundingBox();
                 Sources[0] = newSource;      // Take bounding box as new source file
             }
+
+            Timers.StopTimer();
         }
 
         /// <summary>
@@ -84,6 +80,8 @@ namespace OSMConverter.lib
         /// <exception cref="Exception">Invalid OSM filter</exception>
         private static void Filtering()
         {
+            Timers.StartTimer(LibTimers.Filter_Filtering);
+
             while (Filters.Count > 0 || CurrentThreads > 0)
             {
                 if (Filters.Count > 0 && CurrentThreads < MaxThreads)
@@ -140,6 +138,8 @@ namespace OSMConverter.lib
                     System.Threading.Thread.Sleep(500);
                 }
             }
+
+            Timers.StopTimer();
         }
 
         /// <summary>

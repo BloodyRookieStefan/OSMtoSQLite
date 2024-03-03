@@ -21,9 +21,12 @@ namespace TestFramework
                                              new List<Filter> { Filter.Buildings, Filter.Highway, Filter.Railway, Filter.Wood, Filter.Waterway },
                                              x, y);
 
-            Console.WriteLine($"Time filtering: {(int)(OSMConverter.Infos.GetFilterElapsedSeconds() / 60)} min - {OSMConverter.Infos.GetFilterElapsedSeconds() % 60} sec");
-            Console.WriteLine($"Time OSM reading: {(int)(OSMConverter.Infos.GetOSMReaderElapsedSeconds() / 60)} min - {OSMConverter.Infos.GetOSMReaderElapsedSeconds() % 60} sec");
-            Console.WriteLine($"Time SQL storing: {(int)(OSMConverter.Infos.GetSQLStoringElapsedSeconds() / 60)} min - {OSMConverter.Infos.GetSQLStoringElapsedSeconds() % 60} sec");
+            Console.WriteLine($"Time overall: {(int)(OSMConverter.Infos.GetOverallTime().TotalSeconds/ 60)} min - {OSMConverter.Infos.GetOverallTime().TotalSeconds % 60} sec");
+            Console.WriteLine($"Time overall filtering: {(int)(OSMConverter.Infos.GetOverallFilterTime().TotalSeconds / 60)} min - {OSMConverter.Infos.GetOverallFilterTime().TotalSeconds % 60} sec");
+
+            Console.WriteLine($"Time bounding box: {(int)(OSMConverter.Infos.GetFilterTimeBoundingBox().TotalSeconds / 60)} min - {OSMConverter.Infos.GetFilterTimeBoundingBox().TotalSeconds % 60} sec");
+            Console.WriteLine($"Time filter: {(int)(OSMConverter.Infos.GetFilterTime().TotalSeconds / 60)} min - {OSMConverter.Infos.GetFilterTime().TotalSeconds    % 60} sec");
+            Console.WriteLine($"Time for storing: {(int)(OSMConverter.Infos.GetStoringTime().TotalSeconds / 60)} min - {OSMConverter.Infos.GetStoringTime().TotalSeconds     % 60} sec");
 
             Console.WriteLine($"Number of nodes: {OSMConverter.Infos.GetTotalNodeCount()}");
             Console.WriteLine($"Number of ways: {OSMConverter.Infos.GetTotalWayCount()}");

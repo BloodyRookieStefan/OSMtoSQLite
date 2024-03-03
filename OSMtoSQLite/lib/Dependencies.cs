@@ -25,16 +25,22 @@ namespace OSMConverter
             {
                 ProcessStartInfo psi = new ProcessStartInfo();
                 psi.FileName = "java.exe";
-                psi.Arguments = " -version";
+                psi.Arguments = "-version";
                 psi.RedirectStandardError = true;
                 psi.UseShellExecute = false;
 
                 Process pr = Process.Start(psi);
                 string strOutput = pr.StandardError.ReadLine().Split(' ')[2].Replace("\"", "");
+                int javaMajor = System.Convert.ToInt32(strOutput.Split('.')[0]);
+                int javaMinor = System.Convert.ToInt32(strOutput.Split('.')[1]);
 #if DEBUG
-                Console.WriteLine($"DEBUG: Java version detected: {strOutput}");
+                Console.WriteLine($"DEBUG: Java version detected: {javaMajor}.{javaMinor}");
 #endif
-                return true;    
+                // At least Java 1.8 needed
+                if (javaMajor == Java_Major && javaMinor == Java_Minor)
+                    return true;
+                else if(javaMinor > Java_Major)
+                    return true;
             }
             catch
             { }
@@ -42,6 +48,9 @@ namespace OSMConverter
             return false;
         }
 
+        /// <summary>
+        /// Get assembly path
+        /// </summary>
         internal static string AssemblyDirectory
         {
             get

@@ -81,6 +81,7 @@
     <Compile Include="lib\OSMReader.cs" />
     <Compile Include="lib\SQLController.cs" />
     <Compile Include="lib\TempFolder.cs" />
+    <Compile Include="lib\Timers.cs" />
     <Compile Include="lib\Types.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

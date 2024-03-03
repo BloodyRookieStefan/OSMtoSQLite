@@ -18,22 +18,17 @@ namespace OSMConverter
         internal static List<Way> Ways = new List<Way>();
         internal static List<Relation> Relations = new List<Relation>();
 
-        internal static TimeSpan ElapsedTime;                                   // Elapsed time for reading OSM document
-
         /// <summary>
         /// Read OSM file
         /// </summary>
         /// <param name="input">Path to OSM file</param>
         internal static void Read(string input)
         {
-            // Start time
-            DateTime start = DateTime.UtcNow;
 
             // Get in clear state
             Nodes.Clear();
             Ways.Clear();
             Relations.Clear();
-            ElapsedTime = TimeSpan.Zero;
 
             // Read XML styled file
             using (XmlReader reader = XmlReader.Create(input))
@@ -111,9 +106,6 @@ namespace OSMConverter
                     }
                 }
             }
-
-            // End time
-            ElapsedTime = DateTime.UtcNow - start;
         }
 
         /// <summary>
