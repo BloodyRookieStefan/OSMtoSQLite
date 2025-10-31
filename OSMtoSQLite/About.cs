@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Reflection;
 
 namespace OSMConverter
 {
@@ -26,7 +27,7 @@ namespace OSMConverter
         /// <returns>The version of the application.</returns>
         public static string GetAppVersion()
         {
-            return "1.0.0";
+            return Assembly.GetExecutingAssembly().GetName().Version.ToString();
         }
 
         /// <summary>
