@@ -183,22 +183,53 @@ namespace OSMConverter.lib
         /// </remarks>
         private static void SendNodes(List<Node> nodes, SQLiteCommand sqCommand)
         {
-            // Do nothing when no nodes
-            if (nodes.Count != 0)
-            {
-                // Run trough sub lists
-                foreach (var node in nodes)
-                {
-                    sqCommand.CommandText = $"INSERT INTO NODES (ID, VERSION, TIMESTAMP,  LAT, LONG) VALUES ({node.ID}, \"{node.VERSION}\", \"{node.TIMESTAMP}\", \"{node.LAT}\", \"{node.LONG}\")";
-                    sqCommand.ExecuteNonQuery();
+            if (nodes == null || nodes.Count == 0)
+                return;
 
-                    // Runt trough node tags
+            // Prepare node insert command
+            sqCommand.CommandText = "INSERT INTO NODES (ID, VERSION, TIMESTAMP, LAT, LONG) VALUES (@id, @version, @timestamp, @lat, @long)";
+            sqCommand.Parameters.Clear();
+            sqCommand.Parameters.Add(new SQLiteParameter("@id"));
+            sqCommand.Parameters.Add(new SQLiteParameter("@version"));
+            sqCommand.Parameters.Add(new SQLiteParameter("@timestamp"));
+            sqCommand.Parameters.Add(new SQLiteParameter("@lat"));
+            sqCommand.Parameters.Add(new SQLiteParameter("@long"));
+
+            foreach (var node in nodes)
+            {
+                sqCommand.Parameters["@id"].Value = node.ID;
+                sqCommand.Parameters["@version"].Value = node.VERSION;
+                sqCommand.Parameters["@timestamp"].Value = node.TIMESTAMP;
+                sqCommand.Parameters["@lat"].Value = node.LAT;
+                sqCommand.Parameters["@long"].Value = node.LONG;
+                sqCommand.ExecuteNonQuery();
+
+                // Insert tags for this node
+                if (node.TAGS != null && node.TAGS.Count > 0)
+                {
+                    sqCommand.CommandText = "INSERT INTO TAGS (CONNECTID, KEY, VALUE) VALUES (@connectid, @key, @value)";
+                    sqCommand.Parameters.Clear();
+                    sqCommand.Parameters.Add(new SQLiteParameter("@connectid"));
+                    sqCommand.Parameters.Add(new SQLiteParameter("@key"));
+                    sqCommand.Parameters.Add(new SQLiteParameter("@value"));
+
                     foreach (var tag in node.TAGS)
                     {
-                        sqCommand.CommandText = $"INSERT INTO TAGS (CONNECTID, KEY, VALUE) VALUES ({node.ID}, \"{tag.KEY}\", \"{tag.VALUE}\")";
+                        sqCommand.Parameters["@connectid"].Value = node.ID;
+                        sqCommand.Parameters["@key"].Value = tag.KEY;
+                        sqCommand.Parameters["@value"].Value = tag.VALUE;
                         sqCommand.ExecuteNonQuery();
                     }
                 }
+
+                // Reset to node insert for next iteration
+                sqCommand.CommandText = "INSERT INTO NODES (ID, VERSION, TIMESTAMP, LAT, LONG) VALUES (@id, @version, @timestamp, @lat, @long)";
+                sqCommand.Parameters.Clear();
+                sqCommand.Parameters.Add(new SQLiteParameter("@id"));
+                sqCommand.Parameters.Add(new SQLiteParameter("@version"));
+                sqCommand.Parameters.Add(new SQLiteParameter("@timestamp"));
+                sqCommand.Parameters.Add(new SQLiteParameter("@lat"));
+                sqCommand.Parameters.Add(new SQLiteParameter("@long"));
             }
         }
 

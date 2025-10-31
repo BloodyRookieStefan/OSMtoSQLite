@@ -319,7 +319,7 @@ namespace OSMConverter.lib
             }
 
             // Fire thread done
-            ThreadDone(this, EventArgs.Empty);
+            ThreadDone?.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>
