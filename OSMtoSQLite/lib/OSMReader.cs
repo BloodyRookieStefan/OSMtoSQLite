@@ -12,16 +12,51 @@ using System.Xml.Linq;
 
 namespace OSMConverter
 {
+    /// <summary>
+    /// Reads OpenStreetMap XML files and populates in-memory collections of OSM elements.
+    /// </summary>
+    /// <remarks>
+    /// This reader is a simple streaming XML reader that parses <c>node</c>, <c>way</c> and <c>relation</c> elements
+    /// and their child elements (<c>tag</c>, <c>nd</c>, <c>member</c>), storing the parsed structures into the
+    /// static lists exposed by this class: <see cref="Nodes"/>, <see cref="Ways"/> and <see cref="Relations"/>.
+    /// The collections are cleared at the start of each <see cref="Read(string)"/> call.
+    /// </remarks>
     internal class OSMReader
     {
+        /// <summary>
+        /// Collection of parsed OSM nodes from the last <see cref="Read(string)"/> invocation.
+        /// </summary>
+        /// <remarks>
+        /// Each entry is an instance of <see cref="Node"/>. Consumers should treat the list as the result of the last read operation.
+        /// The list is cleared when <see cref="Read(string)"/> is called.
+        /// </remarks>
         internal static List<Node> Nodes = new List<Node>();
+
+        /// <summary>
+        /// Collection of parsed OSM ways from the last <see cref="Read(string)"/> invocation.
+        /// </summary>
+        /// <remarks>
+        /// Each entry is an instance of <see cref="Way"/>. Way objects include their <see cref="Way.NODEREFERENCES"/> and <see cref="Way.TAGS"/>.
+        /// </remarks>
         internal static List<Way> Ways = new List<Way>();
+
+        /// <summary>
+        /// Collection of parsed OSM relations from the last <see cref="Read(string)"/> invocation.
+        /// </summary>
+        /// <remarks>
+        /// Each entry is an instance of <see cref="Relation"/>. Relation objects include their <see cref="Relation.MEMBERS"/> and <see cref="Relation.TAGS"/>.
+        /// </remarks>
         internal static List<Relation> Relations = new List<Relation>();
 
         /// <summary>
-        /// Read OSM file
+        /// Read an OSM XML file and populate the static node/way/relation collections.
         /// </summary>
-        /// <param name="input">Path to OSM file</param>
+        /// <param name="input">Path to the OSM XML file to read. The file must be accessible to the running process.</param>
+        /// <remarks>
+        /// This method clears the current contents of <see cref="Nodes"/>, <see cref="Ways"/> and <see cref="Relations"/> before reading.
+        /// It performs a streaming read using <see cref="XmlReader"/> to minimize memory overhead relative to DOM parsing,
+        /// but still stores all parsed entities in memory.
+        /// </remarks>
         internal static void Read(string input)
         {
 
@@ -109,15 +144,18 @@ namespace OSMConverter
         }
 
         /// <summary>
-        /// Store struct in list
+        /// Store a parsed parent element (<c>node</c>, <c>way</c> or <c>relation</c>) into the corresponding static collection.
         /// </summary>
-        /// <param name="node">Node struct</param>
-        /// <param name="way">Way struct</param>
-        /// <param name="relation">Relation struct</param>
-        /// <param name="nodeRefs">List of node references</param>
-        /// <param name="tags">List of tags</param>
-        /// <param name="members">List of members</param>
-        /// <exception cref="Exception">Invalid handover to store XML node</exception>
+        /// <param name="node">Node struct to store, or <c>null</c> if not applicable.</param>
+        /// <param name="way">Way struct to store, or <c>null</c> if not applicable.</param>
+        /// <param name="relation">Relation struct to store, or <c>null</c> if not applicable.</param>
+        /// <param name="nodeRefs">List of node references to assign to the way (copied into the way's <c>NODEREFERENCES</c>).</param>
+        /// <param name="tags">List of tags to assign to the element (copied into the element's <c>TAGS</c>).</param>
+        /// <param name="members">List of members to assign to the relation (copied into the relation's <c>MEMBERS</c>).</param>
+        /// <exception cref="Exception">
+        /// Thrown when neither <paramref name="node"/>, <paramref name="way"/> nor <paramref name="relation"/> is provided
+        /// or when more than one parent element is provided. These indicate an internal parsing state error.
+        /// </exception>
         private static void StoreToList(Node? node, Way? way, Relation? relation, List<NodeRef> nodeRefs, List<Tag> tags, List<Member> members)
         {
             int i = 0;
@@ -163,11 +201,11 @@ namespace OSMConverter
 
         #region Read functions
         /// <summary>
-        /// Read OSM node type
+        /// Parse a <c>node</c> element's attributes into a <see cref="Node"/> struct.
         /// </summary>
-        /// <param name="reader">Current XML reader</param>
-        /// <returns>Node struct</returns>
-        /// <exception cref="InvalidOperationException">Invalid xml format</exception>
+        /// <param name="reader">An <see cref="XmlReader"/> positioned on a <c>node</c> start element.</param>
+        /// <returns>A <see cref="Node"/> populated with attribute values found on the element.</returns>
+        /// <exception cref="InvalidOperationException">May be thrown by <see cref="XmlReader"/> operations if the reader is in an invalid state.</exception>
         private static Node ReadNode(XmlReader reader)
         {
             // Create new node
@@ -210,11 +248,11 @@ namespace OSMConverter
         }
 
         /// <summary>
-        /// Read OSM way type
+        /// Parse a <c>way</c> element's attributes into a <see cref="Way"/> struct.
         /// </summary>
-        /// <param name="reader">Current XML reader</param>
-        /// <returns>Way struct</returns>
-        /// <exception cref="InvalidOperationException">Invalid xml format</exception>
+        /// <param name="reader">An <see cref="XmlReader"/> positioned on a <c>way</c> start element.</param>
+        /// <returns>A <see cref="Way"/> populated with attribute values found on the element.</returns>
+        /// <exception cref="InvalidOperationException">May be thrown by <see cref="XmlReader"/> operations if the reader is in an invalid state.</exception>
         private static Way ReadWay(XmlReader reader)
         {
             // Create new node
@@ -249,11 +287,11 @@ namespace OSMConverter
         }
 
         /// <summary>
-        /// Read OSM relation type
+        /// Parse a <c>relation</c> element's attributes into a <see cref="Relation"/> struct.
         /// </summary>
-        /// <param name="reader">Current XML reader</param>
-        /// <returns>Relation struct</returns>
-        /// <exception cref="InvalidOperationException">Invalid xml format</exception>
+        /// <param name="reader">An <see cref="XmlReader"/> positioned on a <c>relation</c> start element.</param>
+        /// <returns>A <see cref="Relation"/> populated with attribute values found on the element.</returns>
+        /// <exception cref="InvalidOperationException">May be thrown by <see cref="XmlReader"/> operations if the reader is in an invalid state.</exception>
         private static Relation ReadRelation(XmlReader reader)
         {
             // Create new node
@@ -288,11 +326,11 @@ namespace OSMConverter
         }
 
         /// <summary>
-        /// Read OSM NodeRef type
+        /// Parse an <c>nd</c> element (node reference) into a <see cref="NodeRef"/> struct.
         /// </summary>
-        /// <param name="reader">Current XML reader</param>
-        /// <returns>NodeRef struct</returns>
-        /// <exception cref="InvalidOperationException">Invalid xml format</exception>
+        /// <param name="reader">An <see cref="XmlReader"/> positioned on an <c>nd</c> start element.</param>
+        /// <returns>A <see cref="NodeRef"/> that contains the referenced node id.</returns>
+        /// <exception cref="InvalidOperationException">May be thrown by <see cref="XmlReader"/> operations if the reader is in an invalid state.</exception>
         private static NodeRef ReadNodeRef(XmlReader reader)
         {
             // Create new tag
@@ -319,11 +357,11 @@ namespace OSMConverter
         }
 
         /// <summary>
-        /// Read OSM Tag type
+        /// Parse a <c>tag</c> element into a <see cref="Tag"/> struct.
         /// </summary>
-        /// <param name="reader">Current XML reader</param>
-        /// <returns>Tag struct</returns>
-        /// <exception cref="InvalidOperationException">Invalid xml format</exception>
+        /// <param name="reader">An <see cref="XmlReader"/> positioned on a <c>tag</c> start element.</param>
+        /// <returns>A <see cref="Tag"/> with <see cref="Tag.KEY"/> and <see cref="Tag.VALUE"/> set from the element's attributes.</returns>
+        /// <exception cref="InvalidOperationException">May be thrown by <see cref="XmlReader"/> operations if the reader is in an invalid state.</exception>
         private static Tag ReadTag(XmlReader reader)
         {
             // Create new tag
@@ -354,11 +392,11 @@ namespace OSMConverter
         }
 
         /// <summary>
-        /// Read OSM Member type
+        /// Parse a <c>member</c> element into a <see cref="Member"/> struct.
         /// </summary>
-        /// <param name="reader">Current XML reader</param>
-        /// <returns>Member struct</returns>
-        /// <exception cref="InvalidOperationException">Invalid xml format</exception>
+        /// <param name="reader">An <see cref="XmlReader"/> positioned on a <c>member</c> start element.</param>
+        /// <returns>A <see cref="Member"/> with <see cref="Member.TYPE"/>, <see cref="Member.REF"/> and <see cref="Member.ROLE"/> populated.</returns>
+        /// <exception cref="InvalidOperationException">May be thrown by <see cref="XmlReader"/> operations if the reader is in an invalid state.</exception>
         private static Member ReadMember(XmlReader reader)
         {
             // Create new tag
@@ -394,10 +432,13 @@ namespace OSMConverter
         #endregion
 
         /// <summary>
-        /// Read value
+        /// Read and sanitize an attribute value from the current <see cref="XmlReader"/> attribute.
         /// </summary>
-        /// <param name="reader">Current XML reader</param>
-        /// <returns>Formatted string</returns>
+        /// <param name="reader">The <see cref="XmlReader"/> positioned on an attribute (after <c>MoveToAttribute</c>).</param>
+        /// <returns>
+        /// The attribute value trimmed of whitespace and with double quotes and backslashes removed.
+        /// This method does not validate specific formats (e.g., numeric ids or timestamps).
+        /// </returns>
         private static string ReadFormatedValue(XmlReader reader)
         {
             string val = reader.Value;

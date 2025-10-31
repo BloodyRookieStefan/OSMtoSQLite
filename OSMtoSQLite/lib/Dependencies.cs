@@ -9,16 +9,49 @@ using System.Threading.Tasks;
 
 namespace OSMConverter
 {
+    /// <summary>
+    /// Provides helper methods for detecting external dependencies and locating
+    /// the executing assembly directory.
+    /// </summary>
     internal class Dependencies
     {
-        // Minimum Java version
+        /// <summary>
+        /// Minimum required Java major version component.
+        /// </summary>
+        /// <remarks>
+        /// The value is used together with <see cref="Java_Minor"/> to represent the minimum
+        /// required Java version. Default values indicate Java 1.8 is required.
+        /// </remarks>
         private static int Java_Major = 1;
+
+        /// <summary>
+        /// Minimum required Java minor version component.
+        /// </summary>
+        /// <remarks>
+        /// The value is used together with <see cref="Java_Major"/> to represent the minimum
+        /// required Java version. Default values indicate Java 1.8 is required.
+        /// </remarks>
         private static int Java_Minor = 8;
 
         /// <summary>
-        /// Check if java is installed
+        /// Check if Java is installed on the system and meets the minimum required version.
         /// </summary>
-        /// <returns>True if installed</returns>
+        /// <returns>
+        /// <c>true</c> if a Java executable is found and its parsed major/minor version
+        /// meets or exceeds the configured minimum; otherwise, <c>false</c>.
+        /// </returns>
+        /// <remarks>
+        /// Implementation details:
+        /// - Starts the external process "java.exe" with the "-version" argument.
+        /// - The JRE/JDK typically writes version information to the standard error stream,
+        ///   so this method reads <see cref="Process.StandardError"/>.
+        /// - The code parses the first error line, extracts the quoted version token,
+        ///   and splits it on '.' to obtain major/minor components.
+        /// - Any exceptions arising from process start, IO or parsing are swallowed and the
+        ///   method returns <c>false</c>. The method intentionally does not throw.
+        /// - Note: This method performs a simple textual parse and may not handle all
+        ///   Java version string formats; the behavior is preserved from the original implementation.
+        /// </remarks>
         internal static bool CheckJavaInstallation()
         {
             try
@@ -49,8 +82,17 @@ namespace OSMConverter
         }
 
         /// <summary>
-        /// Get assembly path
+        /// Gets the directory path of the executing assembly.
         /// </summary>
+        /// <value>
+        /// A string containing the full directory path where the currently executing
+        /// assembly is located. Returns <c>null</c> if the path cannot be determined.
+        /// </value>
+        /// <remarks>
+        /// This property uses <see cref="Assembly.GetExecutingAssembly().CodeBase"/> to
+        /// obtain the assembly location as a URI, converts it to a local path using
+        /// <see cref="Uri.UnescapeDataString"/>, and then returns the directory portion.
+        /// </remarks>
         internal static string AssemblyDirectory
         {
             get
