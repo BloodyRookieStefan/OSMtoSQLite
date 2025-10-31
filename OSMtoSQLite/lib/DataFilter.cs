@@ -67,11 +67,6 @@ namespace OSMConverter.lib
         private readonly static int MaxThreads = 4;                                                     // Max parallel thread for filtering
 
         /// <summary>
-        /// Current number of running parallel threads.
-        /// </summary>
-        private static int CurrentThreads = 0;                                                          // Current running parallel threads
-
-        /// <summary>
         /// Input source file path (OSM data). May be replaced by a bounding-box trimmed file.
         /// </summary>
         private static string Source;                                                                   // Input source file (OSM data)
@@ -159,83 +154,67 @@ namespace OSMConverter.lib
 
         /// <summary>
         /// Runs the configured filters in parallel up to <see cref="MaxThreads"/> concurrent workers.
-        /// Each worker runs an external Osmosis process to extract the requested features.
-        /// The method blocks until all requested filters have finished execution.
+        /// Jeder Filter wird als Task ausgeführt, die Parallelität wird mit SemaphoreSlim gesteuert.
+        /// Die Methode blockiert, bis alle Filter abgeschlossen sind.
         /// </summary>
         /// <exception cref="Exception">Thrown when an invalid filter is encountered while creating workers.</exception>
         private static void Filtering()
         {
             Timers.StartTimer(LibTimers.Filter_Filtering);
 
-            while (Filters.Count > 0 || CurrentThreads > 0)
+            var semaphore = new SemaphoreSlim(MaxThreads);
+            var tasks = new List<Task>();
+            var filterList = new List<Filter>(Filters); // Kopie, da wir parallel arbeiten
+
+            foreach (var f in filterList)
             {
-                if (Filters.Count > 0 && CurrentThreads < MaxThreads)
+                string outPath = null;
+                int i;
+                switch (f)
                 {
-                    // Start new thread
-                    CurrentThreads++;
+                    case Filter.Buildings:
+                        outPath = Path.Combine(TempFolder.GetTempFolder(), "Highways.osm");
+                        i = 1;
+                        break;
+                    case Filter.Highway:
+                        outPath = Path.Combine(TempFolder.GetTempFolder(), "Buildings.osm");
+                        i = 2;
+                        break;
+                    case Filter.Wood:
+                        outPath = Path.Combine(TempFolder.GetTempFolder(), "Wood.osm");
+                        i = 3;
+                        break;
+                    case Filter.Waterway:
+                        outPath = Path.Combine(TempFolder.GetTempFolder(), "Waterway.osm");
+                        i = 4;
+                        break;
+                    case Filter.Railway:
+                        outPath = Path.Combine(TempFolder.GetTempFolder(), "Railway.osm");
+                        i = 5;
+                        break;
+                    default:
+                        throw new Exception("Invalid filter");
+                }
+                Sources[i] = outPath;
 
-                    // Get next filter
-                    Filter f = Filters[0];
-                    Filters.Remove(f);
-
-                    // Select output file name
-                    string outPath = null;
-                    int i;
-                    switch (f)
+                var worker = new Worker(Sources[0], outPath, f);
+                var task = Task.Run(async () =>
+                {
+                    await semaphore.WaitAsync();
+                    try
                     {
-                        case Filter.Buildings:
-                            outPath = Path.Combine(TempFolder.GetTempFolder(), "Highways.osm");
-                            i = 1;
-                            break;
-                        case Filter.Highway:
-                            outPath = Path.Combine(TempFolder.GetTempFolder(), "Buildings.osm");
-                            i = 2;
-                            break;
-                        case Filter.Wood:
-                            outPath = Path.Combine(TempFolder.GetTempFolder(), "Wood.osm");
-                            i = 3;
-                            break;
-                        case Filter.Waterway:
-                            outPath = Path.Combine(TempFolder.GetTempFolder(), "Waterway.osm");
-                            i = 4;  
-                            break;
-                        case Filter.Railway:
-                            outPath = Path.Combine(TempFolder.GetTempFolder(), "Railway.osm");
-                            i = 5;  
-                            break;
-                        default:
-                            throw new Exception("Invalid filter");
+                        worker.RunFilter();
                     }
-
-                    // Create new worker and start thread
-                    Worker w = new Worker(Sources[0], outPath, f);
-                    w.ThreadDone += HandleThreadDone;
-
-                    Thread t = new Thread(w.RunFilter);
-                    t.Start();
-
-                    // Save output file path
-                    Sources[i] = outPath;
-                }
-                else
-                {
-                    // Wait till thread is free or all threads are finsihed
-                    System.Threading.Thread.Sleep(500);
-                }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                });
+                tasks.Add(task);
             }
 
+            Task.WaitAll(tasks.ToArray());
             Timers.StopTimer();
-        }
-
-        /// <summary>
-        /// Generic thread completion handler that decrements the running thread counter.
-        /// Subscribed to each worker's <see cref="Worker.ThreadDone"/> event.
-        /// </summary>
-        /// <param name="sender">The worker that signaled completion.</param>
-        /// <param name="e">Event arguments (unused).</param>
-        private static void HandleThreadDone(object sender, EventArgs e)
-        {
-            CurrentThreads--;
         }
     }
 

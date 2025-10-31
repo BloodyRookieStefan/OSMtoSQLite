@@ -59,85 +59,76 @@ namespace OSMConverter
         /// </remarks>
         internal static void Read(string input)
         {
-
-            // Get in clear state
+            // Clear state
             Nodes.Clear();
             Ways.Clear();
             Relations.Clear();
 
-            // Read XML styled file
-            using (XmlReader reader = XmlReader.Create(input))
+            var settings = new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                IgnoreWhitespace = true,
+                IgnoreComments = true
+            };
+
+            using (var fileStream = System.IO.File.OpenRead(input))
+            using (var bufferedStream = new System.IO.BufferedStream(fileStream, 65536))
+            using (XmlReader reader = XmlReader.Create(bufferedStream, settings))
             {
                 Node? node = null;
                 Way? way = null;
-                Relation? relation = null;  
+                Relation? relation = null;
 
-                List<NodeRef> nodeRefs = new List<NodeRef>();
-                List<Tag> tags = new List<Tag>();
-                List<Member> members = new List<Member>();
+                var nodeRefs = new List<NodeRef>(16);
+                var tags = new List<Tag>(8);
+                var members = new List<Member>(8);
 
-                // Run trough all lines
                 reader.MoveToContent();
                 while (reader.Read())
                 {
-                    // Start tag XML node
                     if (reader.NodeType == XmlNodeType.Element)
                     {
-                        // Store value before open new one
-                        if((reader.Name == "node" || reader.Name == "way" || reader.Name == "relation") &&
-                            (node != null || way != null || relation != null))
+                        string name = reader.Name;
+                        bool isParent = (string.Equals(name, "node", StringComparison.Ordinal) ||
+                                         string.Equals(name, "way", StringComparison.Ordinal) ||
+                                         string.Equals(name, "relation", StringComparison.Ordinal));
+
+                        if (isParent && (node != null || way != null || relation != null))
                         {
                             StoreToList(node, way, relation, nodeRefs, tags, members);
-
-                            // Reset
                             node = null;
                             way = null;
                             relation = null;
-
                             nodeRefs.Clear();
                             tags.Clear();
-                            members.Clear();    
+                            members.Clear();
                         }
 
-                        // Parent nodes
-                        if (reader.Name == "node")
+                        switch (name)
                         {
-                            node = ReadNode(reader);
-                            continue;
-                        }
-                        else if(reader.Name == "way")
-                        {
-                            way = ReadWay(reader);
-                            continue;
-                        }
-                        else if (reader.Name == "relation")
-                        {
-                            relation = ReadRelation(reader);
-                            continue;
-                        }
-
-                        // Sub nodes
-                        if (reader.Name == "tag")
-                        {
-                            tags.Add(ReadTag(reader));
-                            continue;
-                        }
-                        else if(reader.Name == "nd")
-                        {
-                            nodeRefs.Add(ReadNodeRef(reader));
-                            continue;
-                        }
-                        else if(reader.Name == "member")
-                        {
-                            members.Add(ReadMember(reader));
-                            continue;
+                            case "node":
+                                node = ReadNode(reader);
+                                break;
+                            case "way":
+                                way = ReadWay(reader);
+                                break;
+                            case "relation":
+                                relation = ReadRelation(reader);
+                                break;
+                            case "tag":
+                                tags.Add(ReadTag(reader));
+                                break;
+                            case "nd":
+                                nodeRefs.Add(ReadNodeRef(reader));
+                                break;
+                            case "member":
+                                members.Add(ReadMember(reader));
+                                break;
                         }
                     }
-                    // Last element - End of document
-                    else if (reader.NodeType == XmlNodeType.EndElement)
+                    else if (reader.NodeType == XmlNodeType.EndElement && string.Equals(reader.Name, "osm", StringComparison.Ordinal))
                     {
-                        if (reader.Name == "osm")
-                            StoreToList(node, way, relation, nodeRefs, tags, members);
+                        StoreToList(node, way, relation, nodeRefs, tags, members);
                     }
                 }
             }
